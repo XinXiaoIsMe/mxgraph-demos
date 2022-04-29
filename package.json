@@ -1,0 +1,17 @@
+{
+  "name": "mxgraph-demos",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mxgraph"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mxgraph": "^4.2.2"
+  }
+}

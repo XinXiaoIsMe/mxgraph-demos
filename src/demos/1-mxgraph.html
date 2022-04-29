@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mxgraph-mxGraph初始化</title>
+  <style>
+    body {
+      margin: 0;
+    }
+
+    #app {
+      height: 100vh;
+    }
+
+    #canvas {
+      float: left;
+      width: 80%;
+      height: 100%;
+      background-image: url(../assets/images/grid.gif);
+    }
+
+    #drag-area {
+      float: left;
+      width: 20%;
+      height: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+
+    li {
+      margin-bottom: 10px;
+    }
+
+    img {
+      width: 80px;
+      height: 80px;
+      border: 1px dashed #ccc;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="canvas"></div>
+    <div id="drag-area"></div>
+  </div>
+  <script>
+    mxBasePath = '../../node_modules/mxgraph/javascript/src'
+  </script>
+  <script src="../../node_modules/mxgraph/javascript/mxClient.min.js"></script>
+  <script>
+    const app = document.getElementById('canvas')
+    const graph = new mxGraph(app)
+    const model = graph.getModel()
+    const images = ['../assets/images/hunter.webp', '../assets/images/man.webp']
+
+    function renderImages() {
+      const oDragArea = document.getElementById('drag-area')
+      let html = '<ul>'
+      images.forEach(src => html += `<li><img src=${src} /></li>`)
+      html += '</ul>'
+      oDragArea.innerHTML = html
+    }
+
+    renderImages()
+
+    model.beginUpdate()
+    try {
+      const oImages = [...document.getElementById('drag-area').querySelectorAll('img')]
+      function makeDraggable(els, graph) {
+        const dropSuccess = function (...args) {
+          const [img, graph, evt, , x, y] = args
+          const width = img.offsetWidth
+          const height = img.offsetHeight
+          const geometry = new mxGeometry(x - (width >>> 1), y - (height >>> 1), width, height)
+          const cell = new mxCell('', geometry, 'shape=image;image=' + img.src)
+          cell.setVertex(true)
+          graph.addCell(cell, graph.getDefaultParent())
+        }
+
+        els.forEach(el => {
+          const dx = el.offsetWidth >>> 1
+          const dy = el.offsetHeight >>> 1
+          mxUtils.makeDraggable(el, graph, dropSuccess.bind(null, el), el.cloneNode(true), -dx, -dy)
+        })
+      }
+      makeDraggable(oImages, graph)
+
+      mxEvent.disableContextMenu(app) // 阻止默认右键菜单
+      graph.popupMenuHandler.factoryMethod = function (menu, cell, evt) { // 添加自定义右键菜单
+        if (cell) {
+          menu.addItem('删除', null, function () {
+            graph.removeCells([cell])
+          })
+          return
+        }
+        menu.addItem('新增', null, function () {
+          console.log('add')
+        })
+      }
+    } finally {
+      model.endUpdate()
+    }
+  </script>
+</body>
+
+<!-- 
+  note:
+  1. mxGraph => 用于生成画布，接受一个dom元素作为画布的父级，返回一个mxGraph实例
+    1.1 getModel => mxGraph的实例方法，返回model对象
+      1.1.1 beginUpdate => model的实例方法，表示开启一个事务
+      1.1.2 endUpdate => model的实例方法，表示关闭一个事务
+      注：使用这两个方法是为了优化性能，为的是将一系列操作统一到一个事务中，而不是每次操作都做出响应。类似dom操作中先操作完dom再挂载到dom树上
+    1.2 addCell => 添加一个cell到画布
+    1.3 removeCells => 删除画布上指定的一系列cell
+  2. mxCell => 用于生成一个cell
+    2.1 setVertex => 实例方法。用于设置一个cell是否为顶点，默认情况下cell不是顶点，需要手动设置为顶点
+  3. mxGeometry => 用于设置一个cell的位置和大小
+  4. mxEvent => mxgraph中的事件类
+    4.1 disableContextMenu => 静态方法，取消默认的右键菜单
+  5. mxUtils => mxgraph中的工具类，里面放置了很多可用的工具方法
+    5.1 makeDraggable => 用于设置元素的拖拽功能
+  6. factoryMethod => 用于添加自定义右键菜单
+ -->
+
+</html>
