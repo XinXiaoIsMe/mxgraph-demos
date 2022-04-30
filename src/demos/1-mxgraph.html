@@ -16,6 +16,7 @@
     }
 
     #canvas {
+      position: relative;
       float: left;
       width: 80%;
       height: 100%;
@@ -46,6 +47,17 @@
       height: 80px;
       border: 1px dashed #ccc;
     }
+
+    #outline {
+      position: absolute;
+      right: calc(20% + 10px);
+      top: 10px;
+      width: 300px;
+      height: 150px;
+      border: 1px solid #333;
+      background-color: #fff;
+      border-radius: 8px;
+    }
   </style>
 </head>
 
@@ -53,6 +65,7 @@
   <div id="app">
     <div id="canvas"></div>
     <div id="drag-area"></div>
+    <div id="outline"></div>
   </div>
   <script>
     mxBasePath = '../../node_modules/mxgraph/javascript/src'
@@ -83,7 +96,7 @@
           const width = img.offsetWidth
           const height = img.offsetHeight
           const geometry = new mxGeometry(x - (width >>> 1), y - (height >>> 1), width, height)
-          const cell = new mxCell('', geometry, 'shape=image;image=' + img.src)
+          const cell = new mxCell('', geometry, `shape=image;image=${img.src};stroke=1;strokeColor=#ccc`)
           cell.setVertex(true)
           graph.addCell(cell, graph.getDefaultParent())
         }
@@ -97,10 +110,15 @@
       makeDraggable(oImages, graph)
 
       mxEvent.disableContextMenu(app) // 阻止默认右键菜单
+
+      new mxRubberband(graph) // 实现框选
+
+      new mxOutline(graph, document.getElementById('outline')) // 添加导航窗口
+
       graph.popupMenuHandler.factoryMethod = function (menu, cell, evt) { // 添加自定义右键菜单
         if (cell) {
           menu.addItem('删除', null, function () {
-            graph.removeCells([cell])
+            graph.removeCells(graph.getSelectionCells())
           })
           return
         }
@@ -130,7 +148,9 @@
     4.1 disableContextMenu => 静态方法，取消默认的右键菜单
   5. mxUtils => mxgraph中的工具类，里面放置了很多可用的工具方法
     5.1 makeDraggable => 用于设置元素的拖拽功能
-  6. factoryMethod => 用于添加自定义右键菜单
+  6. mxRubberband => 实现鼠标框选功能
+  7. factoryMethod => 用于添加自定义右键菜单
+  8. mxOutline => 添加导航窗口
  -->
 
 </html>
