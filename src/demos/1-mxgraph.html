@@ -15,7 +15,7 @@
       height: 100vh;
     }
 
-    #canvas {
+    #canvas-container {
       position: relative;
       float: left;
       width: 80%;
@@ -63,7 +63,7 @@
 
 <body>
   <div id="app">
-    <div id="canvas"></div>
+    <div id="canvas-container"></div>
     <div id="drag-area"></div>
     <div id="outline"></div>
   </div>
@@ -72,8 +72,8 @@
   </script>
   <script src="../../node_modules/mxgraph/javascript/mxClient.min.js"></script>
   <script>
-    const app = document.getElementById('canvas')
-    const graph = new mxGraph(app)
+    const canvasContainer = document.getElementById('canvas-container')
+    const graph = new mxGraph(canvasContainer)
     const model = graph.getModel()
     const imageOpts = [{
       id: 0,
@@ -161,7 +161,7 @@
         new mxConnectionConstraint(new mxPoint(0.75, 1), true)
       ]
 
-      mxEvent.disableContextMenu(app) // 阻止默认右键菜单
+      mxEvent.disableContextMenu(canvasContainer) // 阻止默认右键菜单
 
       new mxRubberband(graph) // 实现框选
 
@@ -172,7 +172,7 @@
         if (!cell) return
         console.log('click cell', cell)
       })
-      app.addEventListener('wheel', function (evt) { // 按住 alt 键滑动鼠标滚轮实现缩放效果
+      canvasContainer.addEventListener('wheel', function (evt) { // 按住 alt 键滑动鼠标滚轮实现缩放效果
         if (evt.altKey) {
           if (evt.wheelDelta > 0) graph.zoomIn() // 放大
           else graph.zoomOut() // 缩小
