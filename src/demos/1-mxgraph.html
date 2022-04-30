@@ -75,30 +75,51 @@
     const app = document.getElementById('canvas')
     const graph = new mxGraph(app)
     const model = graph.getModel()
-    const images = ['../assets/images/hunter.webp', '../assets/images/man.webp']
+    const imageOpts = [{
+      id: 0,
+      label: '城市猎人',
+      src: '../assets/images/hunter.webp'
+    }, {
+      id: 1,
+      label: '神枪手',
+      src: '../assets/images/man.webp'
+    }]
 
     function renderImages() {
       const oDragArea = document.getElementById('drag-area')
-      let html = '<ul>'
-      images.forEach(src => html += `<li><img src=${src} /></li>`)
+      let html = '<ul><li>角色选择</li>'
+      imageOpts.forEach(props => html += `<li><img src=${props.src} data-id=${props.id} data-label=${props.label} /></li>`)
       html += '</ul>'
       oDragArea.innerHTML = html
     }
-
     renderImages()
 
     model.beginUpdate()
     try {
       const oImages = [...document.getElementById('drag-area').querySelectorAll('img')]
+
+      function setDefaultEdgeStyle() {
+        // 设置全局连线样式
+        const edgeStyle = graph.getStylesheet().getDefaultEdgeStyle()
+        edgeStyle.strokeColor = '#000'
+        edgeStyle.strokeWidth = 2
+        edgeStyle.dashed = 1
+        edgeStyle.endArrow = '' // 去掉箭头
+      }
+      setDefaultEdgeStyle()
+
       function makeDraggable(els, graph) {
         const dropSuccess = function (...args) {
           const [img, graph, evt, , x, y] = args
           const width = img.offsetWidth
           const height = img.offsetHeight
           const geometry = new mxGeometry(x - (width >>> 1), y - (height >>> 1), width, height)
-          const cell = new mxCell('', geometry, `shape=image;image=${img.src};stroke=1;strokeColor=#ccc`)
+          const cell = new mxCell(img.dataset.label, geometry, `shape=image;image=${img.src};imageBorder=#ccc;dashed=1;verticalLabelPosition=bottom;verticalAlign=top;spacingTop=10;edgeStyle=myEdgeStyle;`)
+          cell.data = img.dataset
           cell.setVertex(true)
           graph.addCell(cell, graph.getDefaultParent())
+          // 或者 graph.importCells([cell], 0, 0, graph.getDefaultParent())
+          graph.setSelectionCells([cell])
         }
 
         els.forEach(el => {
@@ -109,11 +130,59 @@
       }
       makeDraggable(oImages, graph)
 
+      graph.setConnectable(true) // 设置cell是否可以连线
+      mxGraph.prototype.getAllConnectionConstraints = function (terminal, source) {
+        if (terminal != null && terminal.shape != null) {
+          if (terminal.shape.stencil != null) {
+            if (terminal.shape.stencil.constraints != null) {
+              return terminal.shape.stencil.constraints
+            }
+          }
+          else if (terminal.shape.constraints != null) {
+            return terminal.shape.constraints
+          }
+        }
+
+        return null
+      }
+      // 设置连接点
+      mxShape.prototype.constraints = [
+        new mxConnectionConstraint(new mxPoint(0.25, 0), true),
+        new mxConnectionConstraint(new mxPoint(0.5, 0), true),
+        new mxConnectionConstraint(new mxPoint(0.75, 0), true),
+        new mxConnectionConstraint(new mxPoint(0, 0.25), true),
+        new mxConnectionConstraint(new mxPoint(0, 0.5), true),
+        new mxConnectionConstraint(new mxPoint(0, 0.75), true),
+        new mxConnectionConstraint(new mxPoint(1, 0.25), true),
+        new mxConnectionConstraint(new mxPoint(1, 0.5), true),
+        new mxConnectionConstraint(new mxPoint(1, 0.75), true),
+        new mxConnectionConstraint(new mxPoint(0.25, 1), true),
+        new mxConnectionConstraint(new mxPoint(0.5, 1), true),
+        new mxConnectionConstraint(new mxPoint(0.75, 1), true)
+      ]
+
       mxEvent.disableContextMenu(app) // 阻止默认右键菜单
 
       new mxRubberband(graph) // 实现框选
 
       new mxOutline(graph, document.getElementById('outline')) // 添加导航窗口
+
+      graph.addListener(mxEvent.DOUBLE_CLICK, function (graph, { properties }) { // 给 cell 添加双击事件
+        const cell = properties.cell
+        if (!cell) return
+        console.log('click cell', cell)
+      })
+      app.addEventListener('wheel', function (evt) { // 按住 alt 键滑动鼠标滚轮实现缩放效果
+        if (evt.altKey) {
+          if (evt.wheelDelta > 0) graph.zoomIn() // 放大
+          else graph.zoomOut() // 缩小
+        }
+      })
+      window.addEventListener('keydown', function (evt) { // 同时按住 ctrl + 0 画布恢复原来大小
+        const ctrlPressed = evt.ctrlKey
+        const zeroPressed = evt.keyCode === 48 || evt.key.toLowerCase() === '0'
+        if (ctrlPressed && zeroPressed) graph.zoomActual()
+      })
 
       graph.popupMenuHandler.factoryMethod = function (menu, cell, evt) { // 添加自定义右键菜单
         if (cell) {
@@ -140,9 +209,16 @@
       1.1.2 endUpdate => model的实例方法，表示关闭一个事务
       注：使用这两个方法是为了优化性能，为的是将一系列操作统一到一个事务中，而不是每次操作都做出响应。类似dom操作中先操作完dom再挂载到dom树上
     1.2 addCell => 添加一个cell到画布
-    1.3 removeCells => 删除画布上指定的一系列cell
+    1.3 importCells => 添加一系列cell到画布
+    1.4 removeCells => 删除画布上指定的一系列cell
   2. mxCell => 用于生成一个cell
     2.1 setVertex => 实例方法。用于设置一个cell是否为顶点，默认情况下cell不是顶点，需要手动设置为顶点
+    2.2 样式：
+      imageBorder => 图片边框颜色
+      dashed => 是否使用虚线，0代表不使用，1代表使用
+      verticalLabelPosition => label的位置，值为 top、bottom、middle
+      verticalAlign => 垂直方向的排序方式，值为 top、bottom、middle
+      spacingTop => 相当于 margin-top，单位为像素。其余几个分别是spacingBottom、spacingLeft、spacingRight以及spacing
   3. mxGeometry => 用于设置一个cell的位置和大小
   4. mxEvent => mxgraph中的事件类
     4.1 disableContextMenu => 静态方法，取消默认的右键菜单
