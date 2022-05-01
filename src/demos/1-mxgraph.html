@@ -97,14 +97,17 @@
     model.beginUpdate()
     try {
       const oImages = [...document.getElementById('drag-area').querySelectorAll('img')]
+      mxGraphHandler.prototype.guidesEnabled = true
 
       function setDefaultEdgeStyle() {
         // 设置全局连线样式
         const edgeStyle = graph.getStylesheet().getDefaultEdgeStyle()
         edgeStyle.strokeColor = '#000'
         edgeStyle.strokeWidth = 2
-        edgeStyle.dashed = 1
+        edgeStyle.dashed = 1 // 设置虚线
         edgeStyle.endArrow = '' // 去掉箭头
+        edgeStyle[mxConstants.STYLE_ROUNDED] = true // 设置连线的拐弯处是否为圆角
+        edgeStyle[mxConstants.STYLE_EDGE] = mxEdgeStyle.ElbowConnector // 设置连线为可弯曲的线
       }
       setDefaultEdgeStyle()
 
@@ -131,6 +134,9 @@
       makeDraggable(oImages, graph)
 
       graph.setConnectable(true) // 设置cell是否可以连线
+      graph.setDisconnectOnMove(true) // 禁止游离线条
+      graph.setAllowDanglingEdges(false) // 禁止悬挂的线条
+      graph.isCellMovable = cell => !cell.edge // 禁止移动线条
       mxGraph.prototype.getAllConnectionConstraints = function (terminal, source) {
         if (terminal != null && terminal.shape != null) {
           if (terminal.shape.stencil != null) {
@@ -160,6 +166,14 @@
         new mxConnectionConstraint(new mxPoint(0.5, 1), true),
         new mxConnectionConstraint(new mxPoint(0.75, 1), true)
       ]
+      // 设置连线的时候展示折线
+      graph.connectionHandler.createEdgeState = function () {
+        const edge = graph.createEdge()
+        return new mxCellState(graph.view, edge, graph.getCellStyle(edge))
+      }
+      // 禁止从节点中心拖拽出线条
+      graph.connectionHandler.isConnectableCell = () => false
+      mxEdgeHandler.prototype.isConnectableCell = () => false
 
       mxEvent.disableContextMenu(canvasContainer) // 阻止默认右键菜单
 
@@ -173,7 +187,7 @@
         console.log('click cell', cell)
       })
       canvasContainer.addEventListener('wheel', function (evt) { // 按住 alt 键滑动鼠标滚轮实现缩放效果
-        if (evt.altKey) {
+        if (mxEvent.isAltDown(evt)) {
           if (evt.wheelDelta > 0) graph.zoomIn() // 放大
           else graph.zoomOut() // 缩小
         }
@@ -195,6 +209,40 @@
           console.log('add')
         })
       }
+      let isInit = false
+      function storageGraph() {
+        if (isInit) {
+          isInit = false
+          return
+        }
+        const codec = new mxCodec()
+        const root = codec.encode(graph.getModel()).children[0]
+        const xmlStr = mxUtils.getXml(root)
+
+        localStorage.setItem('graph', xmlStr)
+      }
+      graph.addListener(mxEvent.CELLS_ADDED, storageGraph)
+      graph.addListener(mxEvent.CELLS_MOVED, storageGraph)
+      graph.addListener(mxEvent.CELLS_RESIZED, storageGraph)
+      graph.addListener(mxEvent.CELLS_REMOVED, storageGraph)
+      graph.addListener(mxEvent.CELL_CONNECTED, storageGraph)
+      graph.addListener(mxEvent.LABEL_CHANGED, storageGraph)
+
+      function init() {
+        const xmlStr = localStorage.getItem('graph')
+        if (!xmlStr) return
+        const xmlDom = mxUtils.parseXml(xmlStr)
+        const root = xmlDom.firstChild
+        const codec = new mxCodec(root)
+        const cells = []
+        for (let i = 2; i < root.childNodes.length; i++) { // 开头的两个cell为默认cell，无需添加
+          const node = root.childNodes[i]
+          cells.push(codec.decode(node))
+        }
+        isInit = true
+        graph.addCells(cells)
+      }
+      init()
     } finally {
       model.endUpdate()
     }
