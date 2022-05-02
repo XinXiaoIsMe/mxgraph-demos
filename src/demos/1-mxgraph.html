@@ -70,7 +70,8 @@
   <script>
     mxBasePath = '../../node_modules/mxgraph/javascript/src'
   </script>
-  <script src="../../node_modules/mxgraph/javascript/mxClient.min.js"></script>
+  <script src="../../node_modules/mxgraph/javascript/mxClient.js"></script>
+  <script src="http://unpkg.com/lodash@4.17.21"></script>
   <script>
     const canvasContainer = document.getElementById('canvas-container')
     const graph = new mxGraph(canvasContainer)
@@ -118,7 +119,7 @@
           const height = img.offsetHeight
           const geometry = new mxGeometry(x - (width >>> 1), y - (height >>> 1), width, height)
           const cell = new mxCell(img.dataset.label, geometry, `shape=image;image=${img.src};imageBorder=#ccc;dashed=1;verticalLabelPosition=bottom;verticalAlign=top;spacingTop=10;edgeStyle=myEdgeStyle;`)
-          cell.data = JSON.stringify(img.dataset)
+          cell.data = img.dataset
           cell.setVertex(true)
           graph.addCell(cell, graph.getDefaultParent())
           // 或者 graph.importCells([cell], 0, 0, graph.getDefaultParent())
@@ -216,7 +217,12 @@
           return
         }
         const codec = new mxCodec()
-        const root = codec.encode(graph.getModel()).children[0]
+        const model = _.cloneDeep(graph.getModel())
+        const cells = model.cells
+        for (const cell of Object.values(cells)) {
+          cell.data = JSON.stringify(cell.data)
+        }
+        const root = codec.encode(model).children[0]
         const xmlStr = mxUtils.getXml(root)
         localStorage.setItem('graph', xmlStr)
       }
@@ -236,7 +242,9 @@
         const cells = []
         for (let i = 2; i < root.childNodes.length; i++) { // 开头的两个cell为默认cell，无需添加
           const node = root.childNodes[i]
-          cells.push(codec.decode(node))
+          const parsedNode = codec.decode(node)
+          if (parsedNode.data) parsedNode.data = JSON.parse(parsedNode.data)
+          cells.push(parsedNode)
         }
         isInit = true
         graph.addCells(cells)
