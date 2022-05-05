@@ -1,1 +1,1 @@
-# 一些mxgraph的demos
+# some demos for studying mxgraph
